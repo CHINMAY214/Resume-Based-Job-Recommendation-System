@@ -14,7 +14,7 @@ nltk.download("stopwords")
 # Load the dataset
 @st.cache_data
 def load_data():
-    return pd.read_csv("job_descriptions.csv")  # Update filename if necessary
+    return pd.read_csv("job_descriptions1.csv")  # Update filename if necessary
 
 df_jobs = load_data()
 
