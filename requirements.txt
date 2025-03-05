@@ -1,8 +1,8 @@
 streamlit==1.30.0
-pandas==2.1.4
-numpy==1.26.2
-scikit-learn==1.3.2
-spacy==3.5.3
+pandas==2.1.0
+numpy==1.26.0
+scikit-learn==1.3.0
+en-core-web-sm==3.7.2
 nltk==3.8.1
-kagglehub
-
+regex==2023.12.25
+spacy==3.7.2
