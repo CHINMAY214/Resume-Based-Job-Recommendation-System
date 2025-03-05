@@ -8,11 +8,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Load the dataset
 @st.cache_data
 def load_data():
-    return pd.read_csv("job_descriptions.csv")  # Update the filename if necessary
+    return pd.read_csv("job_descriptions1.csv")  # Update the filename if necessary
 
 df_jobs = load_data()
 
 # Load NLP model
+import spacy.cli
+spacy.cli.download("en_core_web_sm")
 nlp = spacy.load("en_core_web_sm")
 
 # Function to preprocess text
