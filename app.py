@@ -1,70 +1,81 @@
-import os
 import streamlit as st
-import kagglehub
 import pandas as pd
+import re
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Function to download dataset from Kaggle
-def download_dataset():
-    dataset_path = "dataset.csv"
-    if not os.path.exists(dataset_path):
-        st.info("Downloading dataset from Kaggle...")
-        path = kagglehub.dataset_download("ravindrasinghrana/job-description-dataset")
-        st.success("Dataset downloaded successfully!")
-        return path
-    return dataset_path
-
-# Download dataset
-dataset_path = download_dataset()
-
-# Load dataset
+# Load the dataset
 @st.cache_data
 def load_data():
-    return pd.read_csv(dataset_path)
+    return pd.read_csv("job_descriptions.csv")  # Update the filename if necessary
 
-df = load_data()
+df_jobs = load_data()
 
 # Load NLP model
-@st.cache_resource
-def load_nlp():
-    return spacy.load("en_core_web_sm")
+nlp = spacy.load("en_core_web_sm")
 
-nlp = load_nlp()
-
-# Preprocess job descriptions
+# Function to preprocess text
 def preprocess_text(text):
-    doc = nlp(text.lower())
-    return " ".join([token.lemma_ for token in doc if not token.is_stop and not token.is_punct])
+    if pd.isnull(text):
+        return ""
+    text = re.sub(r'[^\w\s]', '', text.lower())  # Remove punctuation & lowercase
+    doc = nlp(text)
+    return " ".join([token.lemma_ for token in doc if not token.is_stop])  # Lemmatization
 
-df["cleaned_description"] = df["job_description"].astype(str).apply(preprocess_text)
+# Apply preprocessing to job descriptions
+df_jobs['Cleaned_Description'] = df_jobs['Job Description'].apply(preprocess_text)
 
-# Vectorize job descriptions
+# Expanded list of skills
+skills_list = [
+    "python", "java", "c++", "javascript", "sql", "r", "machine learning",
+    "deep learning", "nlp", "computer vision", "tensorflow", "pytorch", "scikit-learn",
+    "data analysis", "data visualization", "pandas", "numpy", "matplotlib", "big data",
+    "apache spark", "hadoop", "hive", "aws", "azure", "google cloud", "docker",
+    "kubernetes", "terraform", "ci/cd", "jenkins", "github actions", "html",
+    "css", "react", "angular", "vue.js", "node.js", "express.js", "django",
+    "flask", "spring boot", "mysql", "postgresql", "mongodb", "firebase",
+    "rest api", "graphql", "microservices", "excel", "power bi", "tableau",
+    "looker", "business intelligence", "forecasting", "financial modeling",
+    "market research", "growth analytics", "ethical hacking", "penetration testing",
+    "network security", "cyber threat intelligence", "siem", "soc"
+]
+
+# Function to extract skills from job descriptions
+def extract_skills(text):
+    return [skill for skill in skills_list if skill in text]
+
+df_jobs['Extracted_Skills'] = df_jobs['Cleaned_Description'].apply(extract_skills)
+
+# TF-IDF Vectorization
 vectorizer = TfidfVectorizer()
-job_vectors = vectorizer.fit_transform(df["cleaned_description"])
+job_vectors = vectorizer.fit_transform(df_jobs['Cleaned_Description'])
 
-# Function to recommend jobs
-def recommend_jobs(user_skills, top_n=5):
-    user_skills_cleaned = preprocess_text(user_skills)
-    user_vector = vectorizer.transform([user_skills_cleaned])
-    similarities = cosine_similarity(user_vector, job_vectors)
-    top_indices = similarities.argsort()[0][-top_n:][::-1]
-    return df.iloc[top_indices][["job_title", "company", "location", "job_description"]]
+# Function to recommend jobs based on resume text
+def recommend_jobs(resume_text, top_n=5):
+    resume_text = preprocess_text(resume_text)  # Preprocess input resume
+    resume_vector = vectorizer.transform([resume_text])  # Convert resume to vector
 
-# Streamlit UI
+    similarity_scores = cosine_similarity(resume_vector, job_vectors)  # Compute similarity
+    job_indices = similarity_scores.argsort()[0][-top_n:][::-1]  # Get top job indices
+
+    return df_jobs.iloc[job_indices][['Job Title', 'Company', 'Extracted_Skills']]
+
+# Streamlit App Interface
 st.title("🔍 Resume-Based Job Recommendation System")
-st.write("Enter your skills to find matching job postings.")
+st.write("Upload your resume or enter your skills below to find the best-matching jobs.")
 
-user_input = st.text_area("📝 Enter your skills (e.g., Python, Data Analysis, Machine Learning)", "")
+# Resume Input
+resume_text = st.text_area("📜 Paste Your Resume or Enter Skills Here:", "")
 
-if st.button("Recommend Jobs"):
-    if user_input:
-        recommendations = recommend_jobs(user_input)
-        st.write("### Recommended Jobs for You:")
-        st.dataframe(recommendations)
+if st.button("Find Jobs"):
+    if resume_text.strip():
+        recommended_jobs = recommend_jobs(resume_text)
+        st.subheader("💼 Recommended Jobs")
+        for _, row in recommended_jobs.iterrows():
+            st.markdown(f"**Job Title:** {row['Job_Title']}")
+            st.markdown(f"**Company:** {row['Company']}")
+            st.markdown(f"**Required Skills:** {', '.join(row['Extracted_Skills'])}")
+            st.write("---")
     else:
-        st.warning("Please enter your skills to get recommendations.")
-
-st.write("📊 Dataset Overview")
-st.write(df.head())
+        st.warning("⚠️ Please enter a resume or skills to proceed.")
