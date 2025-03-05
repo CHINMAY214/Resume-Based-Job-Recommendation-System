@@ -6,6 +6,12 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import subprocess
+
+# Force install correct versions
+subprocess.run(["pip", "install", "--upgrade", "pip"])
+subprocess.run(["pip", "install", "numpy==1.21.0", "pandas==1.5.3", "scikit-learn==1.3.0"])
 
 # Download NLTK resources
 nltk.download("punkt")
