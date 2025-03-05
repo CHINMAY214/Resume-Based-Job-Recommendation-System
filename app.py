@@ -4,6 +4,19 @@ import re
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import subprocess
+
+# Ensure the required Spacy model is installed
+spacy_model = "en_core_web_sm"
+try:
+    import spacy
+    nlp = spacy.load(spacy_model)
+except:
+    subprocess.run(["python", "-m", "spacy", "download", spacy_model])
+    import spacy
+    nlp = spacy.load(spacy_model)
+
 
 # Load the dataset
 @st.cache_data
