@@ -1,4 +1,4 @@
-import streamlit as st
+from flask import Flask, request, jsonify, render_template
 import pandas as pd
 import re
 import nltk
@@ -7,18 +7,14 @@ from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
-import subprocess
 
-# Force install correct versions
-subprocess.run(["pip", "install", "--upgrade", "pip"])
-subprocess.run(["pip", "install", "numpy==1.21.0", "pandas==1.5.3", "scikit-learn==1.3.0"])
+app = Flask(__name__)
 
 # Download NLTK resources
 nltk.download("punkt")
 nltk.download("stopwords")
 
 # Load the dataset
-@st.cache_data
 def load_data():
     return pd.read_csv("job_descriptions1.csv")  # Update filename if necessary
 
@@ -63,21 +59,21 @@ def recommend_jobs(resume_text, top_n=5):
     job_indices = similarity_scores.argsort()[0][-top_n:][::-1]  # Get top job indices
     return df_jobs.iloc[job_indices][["Job Title", "Company", "Extracted_Skills"]]
 
-# Streamlit App Interface
-st.title("🔍 Resume-Based Job Recommendation System")
-st.write("Upload your resume or enter your skills below to find the best-matching jobs.")
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-# Resume Input
-resume_text = st.text_area("📜 Paste Your Resume or Enter Skills Here:", "")
+@app.route("/recommend", methods=["POST"])
+def recommend():
+    data = request.json
+    resume_text = data.get("resume_text", "").strip()
+    
+    if not resume_text:
+        return jsonify({"error": "Please enter a resume or skills to proceed."}), 400
+    
+    recommended_jobs = recommend_jobs(resume_text)
+    jobs_list = recommended_jobs.to_dict(orient="records")
+    return jsonify({"recommended_jobs": jobs_list})
 
-if st.button("Find Jobs"):
-    if resume_text.strip():
-        recommended_jobs = recommend_jobs(resume_text)
-        st.subheader("💼 Recommended Jobs")
-        for _, row in recommended_jobs.iterrows():
-            st.markdown(f"**Job Title:** {row['Job Title']}")
-            st.markdown(f"**Company:** {row['Company']}")
-            st.markdown(f"**Required Skills:** {', '.join(row['Extracted_Skills'])}")
-            st.write("---")
-    else:
-        st.warning("⚠️ Please enter a resume or skills to proceed.")
+if __name__ == "__main__":
+    app.run(debug=True)
